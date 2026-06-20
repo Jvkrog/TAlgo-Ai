@@ -1,0 +1,522 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TAlgo AI Dashboard</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.2/babel.min.js"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Inter:wght@400;500;600&display=swap');
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg:       #080c10;
+    --surface:  #0d1117;
+    --border:   rgba(255,255,255,0.07);
+    --border2:  rgba(255,255,255,0.12);
+    --text:     #c9d1d9;
+    --muted:    #4a5568;
+    --cyan:     #38bdf8;
+    --green:    #34d399;
+    --red:      #f87171;
+    --yellow:   #fbbf24;
+    --purple:   #a78bfa;
+    --mono:     'IBM Plex Mono', monospace;
+    --sans:     'Inter', system-ui, sans-serif;
+  }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--sans);
+    font-size: 13px;
+    line-height: 1.6;
+    min-height: 100vh;
+  }
+
+  /* ── Layout ── */
+  .app { display: flex; flex-direction: column; min-height: 100vh; }
+
+  .topbar {
+    display: flex; align-items: center; gap: 16px;
+    padding: 12px 24px;
+    border-bottom: 1px solid var(--border);
+    background: var(--surface);
+    position: sticky; top: 0; z-index: 10;
+  }
+  .topbar-logo { font-family: var(--mono); font-size: 13px; font-weight: 600; color: #fff; letter-spacing: 0.05em; }
+  .topbar-badge { font-family: var(--mono); font-size: 10px; color: var(--cyan); background: rgba(56,189,248,0.1); padding: 2px 8px; border-radius: 3px; letter-spacing: 0.1em; }
+  .topbar-right { margin-left: auto; font-family: var(--mono); font-size: 11px; color: var(--muted); }
+
+  .main { display: flex; flex: 1; }
+
+  /* ── Sidebar ── */
+  .sidebar {
+    width: 260px; min-width: 260px;
+    border-right: 1px solid var(--border);
+    padding: 16px 0;
+    overflow-y: auto;
+    height: calc(100vh - 45px);
+    position: sticky; top: 45px;
+  }
+  .sidebar-label { font-family: var(--mono); font-size: 10px; color: var(--muted); letter-spacing: 0.12em; padding: 0 16px 8px; }
+
+  .session-row {
+    padding: 10px 16px; cursor: pointer;
+    border-left: 2px solid transparent;
+    transition: background 0.15s, border-color 0.15s;
+  }
+  .session-row:hover { background: rgba(255,255,255,0.03); }
+  .session-row.active { background: rgba(56,189,248,0.06); border-left-color: var(--cyan); }
+  .session-date { font-family: var(--mono); font-size: 12px; font-weight: 500; color: #e2e8f0; }
+  .session-meta { font-size: 11px; color: var(--muted); margin-top: 2px; }
+  .session-pnl { font-family: var(--mono); font-size: 11px; font-weight: 600; }
+  .pos { color: var(--green); }
+  .neg { color: var(--red); }
+  .neu { color: var(--muted); }
+
+  /* ── Content ── */
+  .content { flex: 1; padding: 24px; overflow-y: auto; }
+
+  /* ── Summary cards ── */
+  .summary-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 24px; }
+  @media (max-width: 900px) { .summary-grid { grid-template-columns: repeat(2, 1fr); } }
+
+  .stat-card {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 8px; padding: 14px 16px;
+  }
+  .stat-label { font-family: var(--mono); font-size: 10px; color: var(--muted); letter-spacing: 0.1em; margin-bottom: 6px; }
+  .stat-value { font-family: var(--mono); font-size: 22px; font-weight: 600; }
+  .stat-sub { font-size: 11px; color: var(--muted); margin-top: 3px; }
+
+  /* ── Trade list ── */
+  .section-title {
+    font-family: var(--mono); font-size: 10px; color: var(--muted);
+    letter-spacing: 0.12em; margin-bottom: 12px; display: flex;
+    align-items: center; gap: 10px;
+  }
+  .section-title::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+
+  .analyse-btn {
+    font-family: var(--mono); font-size: 11px; letter-spacing: 0.08em;
+    background: rgba(56,189,248,0.1); border: 1px solid rgba(56,189,248,0.25);
+    color: var(--cyan); padding: 6px 14px; border-radius: 5px;
+    cursor: pointer; margin-bottom: 16px; transition: background 0.15s;
+  }
+  .analyse-btn:hover:not(:disabled) { background: rgba(56,189,248,0.18); }
+  .analyse-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+  .trade-card {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 8px; margin-bottom: 10px; overflow: hidden;
+  }
+  .trade-header {
+    display: flex; align-items: center; gap: 12px;
+    padding: 12px 16px; cursor: pointer;
+    transition: background 0.15s;
+  }
+  .trade-header:hover { background: rgba(255,255,255,0.02); }
+
+  .trade-num { font-family: var(--mono); font-size: 10px; color: var(--muted); width: 20px; }
+  .trade-side { font-family: var(--mono); font-size: 11px; font-weight: 600; padding: 2px 7px; border-radius: 3px; }
+  .long  { background: rgba(52,211,153,0.12); color: var(--green); }
+  .short { background: rgba(248,113,113,0.12); color: var(--red); }
+  .trade-prices { font-family: var(--mono); font-size: 12px; color: #e2e8f0; }
+  .trade-prices span { color: var(--muted); }
+  .trade-reason { font-family: var(--mono); font-size: 10px; color: var(--muted); margin-left: auto; }
+  .trade-pnl { font-family: var(--mono); font-size: 13px; font-weight: 600; text-align: right; min-width: 70px; }
+  .trade-stop-tag { font-family: var(--mono); font-size: 9px; color: var(--yellow); background: rgba(251,191,36,0.1); padding: 1px 5px; border-radius: 2px; }
+
+  /* ── AI Analysis panel ── */
+  .analysis-panel {
+    border-top: 1px solid var(--border);
+    padding: 16px;
+    background: rgba(0,0,0,0.2);
+  }
+  .analysis-loading { font-family: var(--mono); font-size: 11px; color: var(--muted); display: flex; align-items: center; gap: 8px; }
+  .dot-pulse { display: inline-flex; gap: 4px; }
+  .dot-pulse span { width: 4px; height: 4px; border-radius: 50%; background: var(--cyan); animation: dp 1.2s ease-in-out infinite; }
+  .dot-pulse span:nth-child(2) { animation-delay: 0.2s; }
+  .dot-pulse span:nth-child(3) { animation-delay: 0.4s; }
+  @keyframes dp { 0%,80%,100% { opacity: 0.2; } 40% { opacity: 1; } }
+
+  .analysis-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px; }
+  @media (max-width: 700px) { .analysis-grid { grid-template-columns: 1fr; } }
+
+  .analysis-block { padding: 10px 12px; background: rgba(255,255,255,0.02); border: 1px solid var(--border); border-radius: 6px; }
+  .analysis-block-label { font-family: var(--mono); font-size: 9px; letter-spacing: 0.12em; color: var(--muted); margin-bottom: 5px; display: flex; align-items: center; gap: 6px; }
+  .analysis-block-icon { font-size: 11px; }
+  .analysis-block-text { font-size: 12px; line-height: 1.65; color: var(--text); }
+
+  .grade-row { display: flex; align-items: center; gap: 12px; padding: 10px 12px; border-radius: 6px; border: 1px solid; margin-top: 4px; }
+  .grade-A { border-color: rgba(52,211,153,0.3); background: rgba(52,211,153,0.05); }
+  .grade-B { border-color: rgba(251,191,36,0.3); background: rgba(251,191,36,0.05); }
+  .grade-C { border-color: rgba(248,113,113,0.3); background: rgba(248,113,113,0.05); }
+  .grade-letter { font-family: var(--mono); font-size: 24px; font-weight: 700; }
+  .grade-A .grade-letter { color: var(--green); }
+  .grade-B .grade-letter { color: var(--yellow); }
+  .grade-C .grade-letter { color: var(--red); }
+  .grade-takeaway { font-size: 12px; color: var(--text); }
+
+  .analyse-trade-btn {
+    font-family: var(--mono); font-size: 10px;
+    background: transparent; border: 1px solid var(--border2);
+    color: var(--muted); padding: 4px 10px; border-radius: 4px;
+    cursor: pointer; margin-left: auto;
+    transition: color 0.15s, border-color 0.15s;
+  }
+  .analyse-trade-btn:hover:not(:disabled) { color: var(--cyan); border-color: rgba(56,189,248,0.3); }
+  .analyse-trade-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+
+  /* ── PnL bar ── */
+  .pnl-bar-wrap { margin-bottom: 24px; }
+  .pnl-bar { display: flex; gap: 3px; align-items: flex-end; height: 48px; }
+  .pnl-bar-seg { flex: 1; border-radius: 2px 2px 0 0; min-height: 3px; transition: opacity 0.15s; cursor: default; position: relative; }
+  .pnl-bar-seg:hover .pnl-tooltip { display: block; }
+  .pnl-tooltip {
+    display: none; position: absolute; bottom: calc(100% + 6px); left: 50%;
+    transform: translateX(-50%); background: #1e293b; border: 1px solid var(--border2);
+    border-radius: 4px; padding: 4px 8px; font-family: var(--mono); font-size: 10px;
+    white-space: nowrap; z-index: 5; color: #e2e8f0;
+  }
+
+  /* ── Empty / error states ── */
+  .empty { padding: 48px; text-align: center; color: var(--muted); font-family: var(--mono); font-size: 12px; }
+  .error-msg { color: var(--red); font-family: var(--mono); font-size: 11px; padding: 8px 12px; background: rgba(248,113,113,0.08); border: 1px solid rgba(248,113,113,0.2); border-radius: 5px; margin-bottom: 12px; }
+
+  /* ── Blocked candles pill ── */
+  .filtered-pill { font-family: var(--mono); font-size: 10px; color: var(--yellow); background: rgba(251,191,36,0.08); border: 1px solid rgba(251,191,36,0.15); padding: 2px 8px; border-radius: 3px; }
+
+  .chevron { font-size: 10px; color: var(--muted); transition: transform 0.15s; }
+  .chevron.open { transform: rotate(90deg); }
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+const { useState, useEffect, useCallback } = React;
+
+// ─── Helpers ───────────────────────────────────────────────────────────────
+
+const pnl = (v) => v == null ? "—" : (v >= 0 ? `+₹${v}` : `-₹${Math.abs(v)}`);
+const pnlClass = (v) => v == null ? "neu" : v >= 0 ? "pos" : "neg";
+
+const BLOCK_META = {
+  "ENTRY RATIONALE":  { icon: "▶", col: "var(--cyan)" },
+  "INDICATOR STATE":  { icon: "◈", col: "var(--purple)" },
+  "TRADE BEHAVIOUR":  { icon: "~", col: "var(--yellow)" },
+  "EXIT QUALITY":     { icon: "⏹", col: "var(--green)" },
+};
+
+// ─── Components ────────────────────────────────────────────────────────────
+
+function AnalysisPanel({ tradeIdx, sessionDate, prefetched }) {
+  const [data, setData]     = useState(prefetched || null);
+  const [loading, setLoading] = useState(false);
+  const [err, setErr]       = useState(null);
+
+  useEffect(() => { if (prefetched) setData(prefetched); }, [prefetched]);
+
+  async function run() {
+    setLoading(true); setErr(null);
+    try {
+      const r = await fetch("/api/analyse", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ date: sessionDate, tradeIndex: tradeIdx }),
+      });
+      const j = await r.json();
+      if (!j.ok) throw new Error(j.error);
+      setData(j.analysis);
+    } catch (e) { setErr(e.message); }
+    finally { setLoading(false); }
+  }
+
+  if (loading) return (
+    <div className="analysis-panel">
+      <div className="analysis-loading">
+        <div className="dot-pulse"><span/><span/><span/></div>
+        Calling Gemini...
+      </div>
+    </div>
+  );
+
+  if (!data) return (
+    <div className="analysis-panel" style={{ display: "flex", alignItems: "center", gap: 10 }}>
+      {err && <span className="error-msg" style={{ margin: 0 }}>{err}</span>}
+      <button className="analyse-trade-btn" onClick={run}>▶ Analyse with Gemini</button>
+    </div>
+  );
+
+  const sections = [
+    { key: "entry_rationale", label: "ENTRY RATIONALE",  icon: "▶", col: "var(--cyan)" },
+    { key: "indicator_state", label: "INDICATOR STATE",  icon: "◈", col: "var(--purple)" },
+    { key: "trade_behaviour", label: "TRADE BEHAVIOUR",  icon: "~", col: "var(--yellow)" },
+    { key: "exit_quality",    label: "EXIT QUALITY",     icon: "⏹", col: "var(--green)" },
+  ];
+
+  return (
+    <div className="analysis-panel">
+      <div className="analysis-grid">
+        {sections.map(s => (
+          <div className="analysis-block" key={s.key}>
+            <div className="analysis-block-label">
+              <span className="analysis-block-icon" style={{ color: s.col }}>{s.icon}</span>
+              {s.label}
+            </div>
+            <div className="analysis-block-text">{data[s.key]}</div>
+          </div>
+        ))}
+      </div>
+      {data.grade && (
+        <div className={`grade-row grade-${data.grade}`}>
+          <div className="grade-letter">{data.grade}</div>
+          <div className="grade-takeaway">{data.takeaway}</div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function TradeCard({ trade, idx, sessionDate, analysis }) {
+  const [open, setOpen] = useState(false);
+  const isStop = trade.exitType === "STOP";
+
+  return (
+    <div className="trade-card">
+      <div className="trade-header" onClick={() => setOpen(o => !o)}>
+        <span className="trade-num">{idx + 1}</span>
+        <span className={`trade-side ${trade.side === "LONG" ? "long" : "short"}`}>
+          {trade.side === "LONG" ? "▲" : "▼"} {trade.side}
+        </span>
+        <span className="trade-prices">
+          {trade.entry} <span>→</span> {trade.exit}
+        </span>
+        {isStop && <span className="trade-stop-tag">SL</span>}
+        <span className="trade-reason">{trade.exitReason}</span>
+        <span className={`trade-pnl ${pnlClass(trade.pnl)}`}>{pnl(trade.pnl)}</span>
+        <span className={`chevron ${open ? "open" : ""}`}>▶</span>
+      </div>
+
+      {open && (
+        <AnalysisPanel
+          tradeIdx={idx}
+          sessionDate={sessionDate}
+          prefetched={analysis}
+        />
+      )}
+    </div>
+  );
+}
+
+function PnlBar({ trades }) {
+  const pnls    = trades.map(t => t.pnl || 0);
+  const maxAbs  = Math.max(...pnls.map(Math.abs), 1);
+
+  return (
+    <div className="pnl-bar">
+      {trades.map((t, i) => {
+        const v   = t.pnl || 0;
+        const pct = Math.max(Math.abs(v) / maxAbs, 0.04);
+        return (
+          <div
+            key={i}
+            className="pnl-bar-seg"
+            style={{
+              height: `${pct * 100}%`,
+              background: v >= 0 ? "var(--green)" : "var(--red)",
+              opacity: 0.75,
+            }}
+          >
+            <div className="pnl-tooltip">{pnl(v)}</div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function SessionView({ session }) {
+  const [analyses, setAnalyses]   = useState({});
+  const [bulkLoading, setBulk]    = useState(false);
+  const [bulkErr, setBulkErr]     = useState(null);
+
+  const totalPnl  = session.trades.reduce((a, t) => a + (t.pnl || 0), 0);
+  const wins      = session.trades.filter(t => (t.pnl || 0) > 0).length;
+  const losses    = session.trades.filter(t => (t.pnl || 0) < 0).length;
+  const bestTrade = session.trades.reduce((a, t) => (t.pnl > (a?.pnl || -Infinity) ? t : a), null);
+
+  async function analyseAll() {
+    setBulk(true); setBulkErr(null);
+    try {
+      const r = await fetch("/api/analyse-session", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ date: session.date }),
+      });
+      const j = await r.json();
+      if (!j.ok) throw new Error(j.error);
+      const map = {};
+      j.analyses.forEach((a, i) => { map[i] = a; });
+      setAnalyses(map);
+    } catch (e) { setBulkErr(e.message); }
+    finally { setBulk(false); }
+  }
+
+  return (
+    <div>
+      {/* Summary cards */}
+      <div className="summary-grid">
+        <div className="stat-card">
+          <div className="stat-label">SESSION PNL</div>
+          <div className={`stat-value ${pnlClass(totalPnl)}`}>{pnl(totalPnl)}</div>
+          <div className="stat-sub">{session.instrument}</div>
+        </div>
+        <div className="stat-card">
+          <div className="stat-label">TRADES</div>
+          <div className="stat-value" style={{ color: "#e2e8f0" }}>{session.trades.length}</div>
+          <div className="stat-sub" style={{ color: "var(--green)" }}>{wins}W</div>
+        </div>
+        <div className="stat-card">
+          <div className="stat-label">LOSSES</div>
+          <div className="stat-value" style={{ color: "var(--red)" }}>{losses}</div>
+          <div className="stat-sub">W/L {wins}/{losses}</div>
+        </div>
+        <div className="stat-card">
+          <div className="stat-label">FILTERED</div>
+          <div className="stat-value" style={{ color: "var(--yellow)" }}>{session.blockedCandles.length}</div>
+          <div className="stat-sub">candles blocked</div>
+        </div>
+      </div>
+
+      {/* PnL bar chart */}
+      {session.trades.length > 0 && (
+        <div className="pnl-bar-wrap">
+          <div className="section-title">TRADE PNL BREAKDOWN</div>
+          <PnlBar trades={session.trades} />
+        </div>
+      )}
+
+      {/* Trade list */}
+      <div className="section-title">TRADES</div>
+
+      {bulkErr && <div className="error-msg">{bulkErr}</div>}
+
+      <button
+        className="analyse-btn"
+        onClick={analyseAll}
+        disabled={bulkLoading || session.trades.length === 0}
+      >
+        {bulkLoading
+          ? "Analysing all trades..."
+          : `▶ Analyse all ${session.trades.length} trades with Gemini`}
+      </button>
+
+      {session.trades.length === 0 && (
+        <div className="empty">No trades this session</div>
+      )}
+
+      {session.trades.map((trade, i) => (
+        <TradeCard
+          key={i}
+          trade={trade}
+          idx={i}
+          sessionDate={session.date}
+          analysis={analyses[i]}
+        />
+      ))}
+    </div>
+  );
+}
+
+// ─── App ───────────────────────────────────────────────────────────────────
+
+function App() {
+  const [sessions, setSessions]       = useState([]);
+  const [selected, setSelected]       = useState(null);
+  const [loading, setLoading]         = useState(true);
+  const [err, setErr]                 = useState(null);
+
+  useEffect(() => {
+    fetch("/api/sessions")
+      .then(r => r.json())
+      .then(j => {
+        if (!j.ok) throw new Error(j.error);
+        // Filter out sessions with no trades and sort newest first
+        const valid = j.sessions
+          .filter(s => s.trades.length > 0 || s.blockedCandles.length > 0)
+          .reverse();
+        setSessions(valid);
+        if (valid.length > 0) setSelected(valid[0]);
+      })
+      .catch(e => setErr(e.message))
+      .finally(() => setLoading(false));
+  }, []);
+
+  const totalPnl = sessions.reduce((a, s) => a + (s.sessionPnl || 0), 0);
+
+  return (
+    <div className="app">
+      <div className="topbar">
+        <span className="topbar-logo">TAlgo</span>
+        <span className="topbar-badge">AI DASHBOARD</span>
+        <span style={{ fontSize: 10, color: "var(--muted)", fontFamily: "var(--mono)" }}>
+          Gemini 2.0 Flash
+        </span>
+        <div className="topbar-right">
+          {sessions.length > 0 && (
+            <>
+              <span style={{ color: totalPnl >= 0 ? "var(--green)" : "var(--red)" }}>
+                {pnl(totalPnl)}
+              </span>
+              <span style={{ marginLeft: 12 }}>{sessions.length} sessions</span>
+            </>
+          )}
+        </div>
+      </div>
+
+      <div className="main">
+        {/* Sidebar */}
+        <div className="sidebar">
+          <div className="sidebar-label">SESSIONS</div>
+          {loading && <div className="empty">Loading...</div>}
+          {err && <div className="empty" style={{ color: "var(--red)" }}>{err}</div>}
+          {sessions.map(s => (
+            <div
+              key={s.date + s.instrument}
+              className={`session-row ${selected?.date === s.date ? "active" : ""}`}
+              onClick={() => setSelected(s)}
+            >
+              <div className="session-date">{s.date}</div>
+              <div className="session-meta" style={{ display: "flex", justifyContent: "space-between" }}>
+                <span>{s.trades.length}T · {s.blockedCandles.length}F</span>
+                <span className={`session-pnl ${pnlClass(s.sessionPnl)}`}>
+                  {pnl(s.sessionPnl)}
+                </span>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* Main content */}
+        <div className="content">
+          {!selected && !loading && (
+            <div className="empty">Select a session from the sidebar</div>
+          )}
+          {selected && (
+            <SessionView key={selected.date} session={selected} />
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById("root")).render(<App />);
+</script>
+</body>
+</html>
